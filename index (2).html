@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CipherLab</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #ffffff;
+      --surface: #f4f5f7;
+      --surface2: #eaecf0;
+      --border: rgba(0,0,0,0.09);
+      --border-hi: rgba(0,0,0,0.18);
+      --text: #0f1117;
+      --muted: #7a8090;
+      --c1: #0099bb;   /* caesar  */
+      --c2: #d97a00;   /* columnar */
+      --c3: #8b3fd9;   /* rsa     */
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    /* ── BG TEXTURE ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 10% 20%, rgba(0,153,187,0.05) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 60% at 90% 80%, rgba(139,63,217,0.05) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .app {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 620px;
+    }
+
+    /* ════════════════════════
+       LANDING VIEW
+    ════════════════════════ */
+    #view-landing {
+      text-align: center;
+      animation: fadeUp 0.5s ease both;
+    }
+
+    .brand {
+      font-family: 'Syne', sans-serif;
+      font-size: 1rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1.2rem;
+    }
+
+    .landing-title {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2.8rem, 8vw, 4.2rem);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      margin-bottom: 2.8rem;
+      background: linear-gradient(135deg, #0f1117 0%, #7a8090 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .start-btn {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      border-radius: 50px;
+      padding: 0.9rem 2.4rem;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      box-shadow: 0 0 40px rgba(15,17,23,0.12);
+    }
+    .start-btn:hover {
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 0 0 60px rgba(15,17,23,0.2);
+    }
+
+    /* ════════════════════════
+       PICK VIEW
+    ════════════════════════ */
+    #view-pick { display: none; animation: fadeUp 0.4s ease both; }
+
+    .pick-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1.4rem;
+      text-align: center;
+    }
+
+    .options {
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+    }
+
+    .opt-btn {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 16px;
+      padding: 1.2rem 1.5rem;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.25s cubic-bezier(0.23,1,0.32,1);
+      position: relative;
+      overflow: hidden;
+    }
+    .opt-btn::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: var(--opt-glow);
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+    .opt-btn:hover { border-color: var(--opt-color); transform: translateX(6px); }
+    .opt-btn:hover::after { opacity: 1; }
+
+    .opt-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      min-width: 24px;
+    }
+    .opt-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text);
+      flex: 1;
+      position: relative; z-index: 1;
+    }
+    .opt-arrow {
+      font-size: 1.1rem;
+      color: var(--opt-color);
+      transition: transform 0.25s;
+      position: relative; z-index: 1;
+      filter: drop-shadow(0 0 6px var(--opt-color));
+    }
+    .opt-btn:hover .opt-arrow { transform: translateX(4px); }
+
+    /* ════════════════════════
+       CIPHER VIEW
+    ════════════════════════ */
+    #view-cipher { display: none; animation: fadeUp 0.4s ease both; }
+
+    .cipher-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 2.2rem;
+    }
+
+    .back-btn {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 500;
+      padding: 0.4rem 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .back-btn:hover { color: var(--text); border-color: var(--border-hi); }
+
+    .cipher-heading {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(1.8rem, 5vw, 2.6rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--active-color);
+      text-shadow: 0 0 40px var(--active-glow);
+      line-height: 1;
+    }
+
+    /* ── FORM FIELDS ── */
+    .field { margin-bottom: 1.2rem; }
+
+    .field-label {
+      display: block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+
+    textarea, input[type="text"], input[type="number"] {
+      width: 100%;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88rem;
+      padding: 0.8rem 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    textarea { height: 110px; resize: vertical; line-height: 1.6; }
+    textarea:focus, input:focus { border-color: var(--active-color); }
+
+    .row { display: flex; gap: 1rem; }
+    .row .field { flex: 1; }
+
+    /* Slider (Caesar) */
+    .slider-wrap { display: flex; gap: 0.8rem; align-items: center; }
+    input[type="range"] {
+      flex: 1; -webkit-appearance: none; height: 3px;
+      background: var(--surface2); border-radius: 4px;
+      border: 1px solid var(--border); outline: none; padding: 0;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 16px; height: 16px;
+      background: var(--active-color); border-radius: 50%; cursor: pointer;
+      box-shadow: 0 0 8px var(--active-glow);
+    }
+    .slider-wrap input[type="number"] { width: 70px; text-align: center; }
+
+    /* ── BUTTONS ── */
+    .btn-row { display: flex; gap: 0.7rem; margin-top: 1.4rem; flex-wrap: wrap; }
+
+    .btn-primary {
+      font-family: 'Outfit', sans-serif; font-weight: 600;
+      font-size: 0.9rem; padding: 0.7rem 1.5rem;
+      background: var(--active-color); color: #ffffff;
+      border: none; border-radius: 10px; cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 20px var(--active-glow);
+    }
+    .btn-primary:hover { transform: translateY(-2px); filter: brightness(1.1); }
+
+    .btn-secondary {
+      font-family: 'Outfit', sans-serif; font-weight: 500;
+      font-size: 0.9rem; padding: 0.7rem 1.5rem;
+      background: transparent; color: var(--text);
+      border: 1.5px solid var(--border-hi); border-radius: 10px;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .btn-secondary:hover { background: var(--surface); transform: translateY(-2px); }
+
+    .btn-ghost {
+      font-family: 'Outfit', sans-serif; font-weight: 400;
+      font-size: 0.85rem; padding: 0.7rem 1rem;
+      background: transparent; color: var(--muted);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .btn-ghost:hover { color: var(--text); }
+
+    /* ── OUTPUT ── */
+    .output-wrap { margin-top: 1.6rem; }
+
+    .output-box {
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88rem;
+      color: var(--muted);
+      min-height: 80px;
+      word-break: break-all;
+      white-space: pre-wrap;
+      line-height: 1.7;
+      transition: border-color 0.3s, color 0.3s;
+    }
+    .output-box.has-result {
+      color: var(--text);
+      border-color: var(--active-color);
+      box-shadow: 0 0 20px var(--active-glow);
+    }
+
+    .output-actions {
+      display: flex; justify-content: space-between;
+      align-items: center; margin-top: 0.6rem;
+    }
+    .output-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--muted);
+    }
+    .btn-copy {
+      font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 0.3rem 0.7rem; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-copy:hover { color: var(--text); border-color: var(--border-hi); }
+
+    /* ── RSA KEY CARDS ── */
+    .key-gen-box {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 1.2rem;
+      margin-bottom: 1.5rem;
+    }
+    .key-gen-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: 1rem;
+    }
+    .key-gen-row { display: flex; gap: 0.8rem; align-items: flex-end; flex-wrap: wrap; }
+    .key-gen-row .field { margin-bottom: 0; }
+    .key-gen-row input[type="number"] { width: 90px; }
+
+    .key-cards {
+      display: flex; gap: 0.8rem; margin-top: 1rem; flex-wrap: wrap;
+    }
+    .key-card {
+      flex: 1; min-width: 140px;
+      border-radius: 8px; padding: 0.75rem 0.9rem;
+      border: 1px solid var(--border);
+    }
+    .kc-pub  { border-color: rgba(0,229,255,0.3);  background: rgba(0,229,255,0.04); }
+    .kc-priv { border-color: rgba(192,132,252,0.3); background: rgba(192,132,252,0.04); }
+    .kc-mod  { border-color: rgba(255,179,71,0.3);  background: rgba(255,179,71,0.04); }
+    .kc-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.62rem; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--muted);
+      display: block; margin-bottom: 0.3rem;
+    }
+    .kc-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem; font-weight: 500;
+      color: var(--text); word-break: break-all;
+    }
+
+    /* ── DIVIDER ── */
+    .divider {
+      border: none; border-top: 1px solid var(--border);
+      margin: 1.6rem 0;
+    }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      background: var(--surface); border: 1px solid var(--border-hi);
+      color: var(--text); padding: 0.6rem 1.1rem;
+      border-radius: 8px; font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem; opacity: 0; pointer-events: none;
+      transform: translateY(8px); transition: all 0.25s ease; z-index: 999;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 480px) {
+      .row { flex-direction: column; gap: 0; }
+      .key-cards { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── LANDING ── -->
+  <div id="view-landing">
+    <h1 class="landing-title">Encrypt.<br/>Decrypt.<br/>Explore.</h1>
+    <button class="start-btn" onclick="showPick()">Get Started →</button>
+  </div>
+
+  <!-- ── PICK A CIPHER ── -->
+  <div id="view-pick">
+    <p class="pick-label">Select a cipher technique</p>
+    <div class="options">
+      <button class="opt-btn" onclick="showCipher('caesar')"
+        style="--opt-color:var(--c1);--opt-glow:rgba(0,229,255,0.07)">
+        <span class="opt-num">01</span>
+        <span class="opt-name">Caesar Cipher</span>
+        <span class="opt-arrow">→</span>
+      </button>
+      <button class="opt-btn" onclick="showCipher('columnar')"
+        style="--opt-color:var(--c2);--opt-glow:rgba(255,179,71,0.07)">
+        <span class="opt-num">02</span>
+        <span class="opt-name">Columnar Cipher</span>
+        <span class="opt-arrow">→</span>
+      </button>
+      <button class="opt-btn" onclick="showCipher('rsa')"
+        style="--opt-color:var(--c3);--opt-glow:rgba(192,132,252,0.07)">
+        <span class="opt-num">03</span>
+        <span class="opt-name">RSA Cipher</span>
+        <span class="opt-arrow">→</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── CIPHER TOOL ── -->
+  <div id="view-cipher">
+    <div class="cipher-header">
+      <button class="back-btn" onclick="showPick()">← Back</button>
+      <h1 class="cipher-heading" id="cipher-heading">—</h1>
+    </div>
+    <div id="cipher-body"></div>
+  </div>
+
+</div>
+
+<div id="toast" class="toast">Copied!</div>
+
+<script>
+/* ══════════════════════
+   NAVIGATION
+══════════════════════ */
+function show(id) {
+  ['view-landing','view-pick','view-cipher'].forEach(v => {
+    const el = document.getElementById(v);
+    el.style.display = 'none';
+    el.style.animation = '';
+  });
+  const target = document.getElementById(id);
+  target.style.display = 'block';
+  void target.offsetWidth;
+  target.style.animation = 'fadeUp 0.4s ease both';
+}
+
+function showPick() { show('view-pick'); }
+
+function showCipher(type) {
+  show('view-cipher');
+  const colors = { caesar:'var(--c1)', columnar:'var(--c2)', rsa:'var(--c3)' };
+  const glows  = { caesar:'rgba(0,229,255,0.2)', columnar:'rgba(255,179,71,0.2)', rsa:'rgba(192,132,252,0.2)' };
+  const names  = { caesar:'Caesar Cipher', columnar:'Columnar Cipher', rsa:'RSA Cipher' };
+
+  // Set active CSS vars on root
+  document.documentElement.style.setProperty('--active-color', colors[type]);
+  document.documentElement.style.setProperty('--active-glow',  glows[type]);
+
+  document.getElementById('cipher-heading').textContent = names[type];
+  document.getElementById('cipher-body').innerHTML = templates[type]();
+}
+
+/* ══════════════════════
+   HTML TEMPLATES
+══════════════════════ */
+const templates = {
+
+  caesar: () => `
+    <div class="field">
+      <label class="field-label">Plaintext</label>
+      <textarea id="c-input" placeholder="Enter your message…"></textarea>
+    </div>
+    <div class="field">
+      <label class="field-label">Shift Key (1–25)</label>
+      <div class="slider-wrap">
+        <input type="range" id="c-slider" min="1" max="25" value="3"
+          oninput="document.getElementById('c-key').value=this.value"/>
+        <input type="number" id="c-key" min="1" max="25" value="3"
+          oninput="document.getElementById('c-slider').value=this.value"/>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="caesarRun('enc')">Encrypt</button>
+      <button class="btn-secondary" onclick="caesarRun('dec')">Decrypt</button>
+      <button class="btn-ghost" onclick="clearOut()">Clear</button>
+    </div>
+    <div class="output-wrap">
+      <div class="output-box" id="out">Result will appear here…</div>
+      <div class="output-actions">
+        <span class="output-label">Output</span>
+        <button class="btn-copy" onclick="copyOut()">⎘ Copy</button>
+      </div>
+    </div>
+  `,
+
+  columnar: () => `
+    <div class="field">
+      <label class="field-label">Plaintext / Ciphertext</label>
+      <textarea id="col-input" placeholder="Enter your message…"></textarea>
+    </div>
+    <div class="field">
+      <label class="field-label">Keyword</label>
+      <input type="text" id="col-key" placeholder="e.g. KEY" value="KEY"/>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="columnarRun('enc')">Encrypt</button>
+      <button class="btn-secondary" onclick="columnarRun('dec')">Decrypt</button>
+      <button class="btn-ghost" onclick="clearOut()">Clear</button>
+    </div>
+    <div class="output-wrap">
+      <div class="output-box" id="out">Result will appear here…</div>
+      <div class="output-actions">
+        <span class="output-label">Output</span>
+        <button class="btn-copy" onclick="copyOut()">⎘ Copy</button>
+      </div>
+    </div>
+  `,
+
+  rsa: () => `
+    <div class="key-gen-box">
+      <p class="key-gen-title">Step 1 — Generate Keys</p>
+      <div class="key-gen-row">
+        <div class="field">
+          <label class="field-label">Prime p</label>
+          <input type="number" id="rsa-p" value="61" min="2"/>
+        </div>
+        <div class="field">
+          <label class="field-label">Prime q</label>
+          <input type="number" id="rsa-q" value="53" min="2"/>
+        </div>
+        <button class="btn-primary" onclick="rsaGenKeys()" style="align-self:flex-end;margin-bottom:0">Generate</button>
+      </div>
+      <div class="key-cards" id="rsa-keys" style="display:none">
+        <div class="key-card kc-pub">
+          <span class="kc-label">Public Key (e, n)</span>
+          <span class="kc-value" id="kpub"></span>
+        </div>
+        <div class="key-card kc-priv">
+          <span class="kc-label">Private Key (d, n)</span>
+          <span class="kc-value" id="kpriv"></span>
+        </div>
+        <div class="key-card kc-mod">
+          <span class="kc-label">Modulus n</span>
+          <span class="kc-value" id="kmod"></span>
+        </div>
+      </div>
+    </div>
+    <hr class="divider"/>
+    <div class="field">
+      <label class="field-label">String Input <span style="text-transform:none;letter-spacing:0;font-size:0.72rem;color:var(--muted)"> — type text, auto-converts to ASCII numbers</span></label>
+      <input type="text" id="rsa-string" placeholder="e.g. Hello" oninput="rsaStringToNums()"/>
+    </div>
+    <div class="field">
+      <label class="field-label">Numbers <span style="text-transform:none;letter-spacing:0;font-size:0.72rem;color:var(--muted)"> — space-separated, each &lt; n (auto-filled from string above)</span></label>
+      <textarea id="rsa-input" placeholder="e.g.  65 72 76 76 79"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="rsaRun('enc')">Encrypt</button>
+      <button class="btn-secondary" onclick="rsaRun('dec')">Decrypt</button>
+      <button class="btn-ghost" onclick="clearOut()">Clear</button>
+    </div>
+    <div class="output-wrap">
+      <div class="output-box" id="out">Generate keys first, then enter a string or numbers.</div>
+      <div class="output-actions">
+        <span class="output-label">Output</span>
+        <button class="btn-copy" onclick="copyOut()">⎘ Copy</button>
+      </div>
+    </div>
+  `
+};
+
+/* ══════════════════════
+   1. CAESAR
+══════════════════════ */
+function caesarRun(mode) {
+  const text  = document.getElementById('c-input').value.trim();
+  const shift = parseInt(document.getElementById('c-key').value) || 3;
+  if (!text) return err('Please enter a message.');
+  const s = mode === 'enc' ? shift : -shift;
+  const result = text.split('').map(ch => {
+    if (/[a-zA-Z]/.test(ch)) {
+      const base = ch >= 'a' ? 97 : 65;
+      return String.fromCharCode(((ch.charCodeAt(0) - base + s + 26) % 26) + base);
+    }
+    return ch;
+  }).join('');
+  ok(result);
+}
+
+/* ══════════════════════
+   2. COLUMNAR
+══════════════════════ */
+function getSortedIdx(key) {
+  return key.split('').map((c,i)=>({c,i}))
+    .sort((a,b)=>a.c.localeCompare(b.c)||a.i-b.i).map(x=>x.i);
+}
+
+function columnarRun(mode) {
+  const raw = document.getElementById('col-input').value.trim();
+  const key = document.getElementById('col-key').value.trim().toUpperCase();
+  if (!raw) return err('Please enter a message.');
+  if (!key) return err('Please enter a keyword.');
+
+  if (mode === 'enc') {
+    const text   = raw.toUpperCase().replace(/[^A-Z]/g,'');
+    const cols   = key.length;
+    const padded = text + 'X'.repeat((cols - text.length % cols) % cols);
+    const grid   = [];
+    for (let i = 0; i < padded.length; i += cols)
+      grid.push(padded.slice(i, i+cols).split(''));
+    let result = '';
+    getSortedIdx(key).forEach(col => grid.forEach(row => result += row[col]));
+    ok(result);
+  } else {
+    const text = raw.toUpperCase().replace(/[^A-Z]/g,'');
+    const cols = key.length;
+    const rows = Math.ceil(text.length / cols);
+    if (text.length % rows !== 0) return err(`Ciphertext length must be divisible by ${rows} rows.`);
+    const grid = Array.from({length:rows}, ()=>new Array(cols).fill(''));
+    let idx = 0;
+    getSortedIdx(key).forEach(col => {
+      for (let r = 0; r < rows; r++) grid[r][col] = text[idx++] || 'X';
+    });
+    ok(grid.map(r=>r.join('')).join(''));
+  }
+}
+
+/* ══════════════════════
+   3. RSA
+══════════════════════ */
+let _pub = null, _priv = null;
+
+function isPrime(n) {
+  if (n<2) return false; if (n===2) return true; if (n%2===0) return false;
+  for (let i=3;i<=Math.sqrt(n);i+=2) if(n%i===0) return false; return true;
+}
+function gcd(a,b) { while(b){[a,b]=[b,a%b];} return a; }
+function modInv(e,phi) {
+  let [r,r1]=[e,phi],[s,s1]=[1,0];
+  while(r1){const q=Math.floor(r/r1);[r,r1]=[r1,r-q*r1];[s,s1]=[s1,s-q*s1];}
+  return((s%phi)+phi)%phi;
+}
+function modPow(b,e,m) {
+  let r=1; b%=m;
+  while(e>0){if(e%2===1)r=r*b%m;e=Math.floor(e/2);b=b*b%m;}
+  return r;
+}
+
+function rsaGenKeys() {
+  const p=parseInt(document.getElementById('rsa-p').value);
+  const q=parseInt(document.getElementById('rsa-q').value);
+  if(!isPrime(p)||!isPrime(q)) return err('Both p and q must be prime numbers. Try p=61, q=53.');
+  if(p===q) return err('p and q must be different.');
+  const n=p*q, phi=(p-1)*(q-1);
+  let e=2; while(e<phi&&gcd(e,phi)!==1)e++;
+  const d=modInv(e,phi);
+  _pub={e,n}; _priv={d,n};
+  document.getElementById('kpub').textContent  = `e = ${e},  n = ${n}`;
+  document.getElementById('kpriv').textContent = `d = ${d},  n = ${n}`;
+  document.getElementById('kmod').textContent  = `${p} × ${q} = ${n}`;
+  document.getElementById('rsa-keys').style.display = 'flex';
+}
+
+function rsaStringToNums() {
+  const str = document.getElementById('rsa-string').value;
+  const nums = str.split('').map(c => c.charCodeAt(0)).join(' ');
+  const ta = document.getElementById('rsa-input');
+  if (ta) ta.value = nums;
+}
+
+function rsaRun(mode) {
+  if(!_pub||!_priv) return err('Generate keys first!');
+  const input=document.getElementById('rsa-input').value.trim();
+  if(!input) return err('Enter a string above or space-separated numbers.');
+  const nums=input.split(/\s+/).map(Number);
+  if(nums.some(isNaN)) return err('Only numbers allowed, separated by spaces.');
+  if(mode==='enc'){
+    if(nums.some(m=>m>=_pub.n)) return err(`Each number must be less than n = ${_pub.n}.`);
+    ok(nums.map(m=>modPow(m,_pub.e,_pub.n)).join('  '));
+  } else {
+    const decrypted = nums.map(c=>modPow(c,_priv.d,_priv.n));
+    const asString = decrypted.map(n => (n >= 32 && n <= 126) ? String.fromCharCode(n) : '?').join('');
+    ok(decrypted.join('  ') + '\n\nDecoded string: ' + asString);
+  }
+}
+
+/* ══════════════════════
+   UTILS
+══════════════════════ */
+function ok(text) {
+  const b = document.getElementById('out');
+  b.textContent = text; b.classList.add('has-result');
+}
+function err(msg) {
+  const b = document.getElementById('out');
+  b.textContent = '⚠ ' + msg; b.classList.remove('has-result');
+  b.style.color = '#f87171';
+  setTimeout(()=>b.style.color='', 3000);
+}
+function clearOut() {
+  const b = document.getElementById('out');
+  b.textContent = 'Result will appear here…'; b.classList.remove('has-result');
+  // clear inputs
+  ['c-input','col-input','rsa-input','rsa-string'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+}
+function copyOut() {
+  const text = document.getElementById('out').textContent;
+  navigator.clipboard.writeText(text).then(()=>{
+    const t=document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'),1800);
+  });
+}
+
+/* init */
+show('view-landing');
+</script>
+</body>
+</html>
